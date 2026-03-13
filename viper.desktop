@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Viper IDE
+Comment=A minimal, dark-themed Python IDE
+Exec=viper
+Icon=viper
+Terminal=false
+Type=Application
+Categories=Development;IDE;TextEditor;
+Keywords=python;ide;editor;code;
+StartupNotify=true
+MimeType=text/x-python;
