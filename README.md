@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/platform-linux-1a1a1a?style=flat-square&logo=linux&logoColor=white" />
   <img src="https://img.shields.io/badge/license-MIT-333333?style=flat-square" />
   <img src="https://img.shields.io/badge/dependencies-zero-4ec9b0?style=flat-square" />
-  <img src="https://img.shields.io/badge/LOC-~900-333333?style=flat-square" />
+  <img src="https://img.shields.io/badge/LOC-~1100-333333?style=flat-square" />
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ Most Python IDEs are heavy, slow, or require dozens of dependencies. Viper is th
 | Feature | Description |
 |---------|-------------|
 | **Run code** | F5 to execute, real-time stdout/stderr streaming |
-| **Interactive input** | Full `input()` support during execution |
+| **Inline `input()`** | Type directly next to the prompt in the output area — just like a real terminal |
 | **pip install** | Install packages directly from the terminal |
 | **Expression eval** | Type Python expressions for quick evaluation |
 | **Command history** | Arrow keys to cycle through previous commands |
@@ -126,7 +126,7 @@ sudo pacman -S tk
 │                                                  │
 │  ┌────────────────────────────────────────────┐  │
 │  │             terminal.py                    │  │
-│  │  Output display • Input entry              │  │
+│  │  Output display • Inline process input     │  │
 │  │  Command history • Tag-based coloring      │  │
 │  └────────────────────────────────────────────┘  │
 │                                                  │
@@ -143,7 +143,9 @@ sudo pacman -S tk
 
 - **Per-keysym auto-close bindings** — A catch-all `<Key>` binding blocks text input on some Tkinter/Tcl versions. Viper binds `<KeyPress-parenleft>`, `<KeyPress-bracketleft>`, etc. individually to avoid this.
 
-- **Threaded I/O** — Subprocess stdout/stderr are read in daemon threads and queued. The main thread polls the queue every 50ms, keeping the UI responsive during code execution.
+- **Threaded I/O** — Subprocess stdout/stderr are read in daemon threads using `os.read()` for immediate output (no newline buffering). The main thread polls the queue every 50ms, keeping the UI responsive during code execution.
+
+- **Inline `input()` I/O** — When a process is running, the terminal output area becomes editable. A Tkinter text mark tracks the boundary between program output and user input. The `write()` method uses a save-insert-restore pattern so that program output arriving mid-typing is placed correctly before the user's pending keystrokes.
 
 ## Keyboard Shortcuts
 
@@ -171,9 +173,9 @@ viper/
 ├── viper/
 │   ├── __init__.py         # Package metadata
 │   ├── __main__.py         # Entry point
-│   ├── app.py              # Main application (280 lines)
-│   ├── editor.py           # Code editor (430 lines)
-│   ├── terminal.py         # Terminal widget (110 lines)
+│   ├── app.py              # Main application (~360 lines)
+│   ├── editor.py           # Code editor (~435 lines)
+│   ├── terminal.py         # Terminal widget (~215 lines)
 │   ├── theme.py            # Color scheme (37 lines)
 │   └── constants.py        # Language constants (63 lines)
 ├── run.py                  # Convenience launcher

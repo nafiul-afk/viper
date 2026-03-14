@@ -85,6 +85,7 @@ class Viper(tk.Tk):
 
         self.terminal = Terminal(paned)
         self.terminal.on_command = self._handle_terminal_command
+        self.terminal.on_input = self._handle_process_input
         paned.add(self.terminal, minsize=80, stretch="never")
 
         self.after(50, lambda: paned.sash_place(0, 0, 440))
@@ -200,27 +201,44 @@ class Viper(tk.Tk):
                 [sys.executable, "-u", self._tmp.name],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE, text=True, bufsize=1)
+            self._stdout_done = threading.Event()
+            self._stderr_done = threading.Event()
             threading.Thread(target=self._read_stream,
-                             args=(self.process.stdout, "out"), daemon=True).start()
+                             args=(self.process.stdout, "out", self._stdout_done),
+                             daemon=True).start()
             threading.Thread(target=self._read_stream,
-                             args=(self.process.stderr, "err"), daemon=True).start()
+                             args=(self.process.stderr, "err", self._stderr_done),
+                             daemon=True).start()
             threading.Thread(target=self._await_process, daemon=True).start()
+            self.terminal.start_process_mode()
         except Exception as ex:
             self.terminal.write(f"Error: {ex}\n", "err")
             self._finalize_process()
 
-    def _read_stream(self, stream, tag):
+    def _read_stream(self, stream, tag, done_event=None):
+        import os
         try:
-            for line in iter(stream.readline, ""):
-                if line:
-                    self._output_queue.put((line, tag))
+            fd = stream.fileno()
+            while True:
+                data = os.read(fd, 4096)
+                if not data:
+                    break
+                self._output_queue.put((data.decode("utf-8", errors="replace"), tag))
             stream.close()
         except (ValueError, OSError):
             pass
+        finally:
+            if done_event:
+                done_event.set()
 
     def _await_process(self):
         if self.process:
             self.process.wait()
+            # Wait for both reader threads to flush remaining output
+            if hasattr(self, "_stdout_done"):
+                self._stdout_done.wait(timeout=5)
+            if hasattr(self, "_stderr_done"):
+                self._stderr_done.wait(timeout=5)
             self._output_queue.put((None, "_done"))
 
     def _poll_output(self):
@@ -243,6 +261,7 @@ class Viper(tk.Tk):
                 os.unlink(self._tmp.name)
             except OSError:
                 pass
+        self.terminal.stop_process_mode()
         self.terminal.write("─" * 44 + "\n", "sys")
         if rc == 0:
             self.terminal.write("✓ Process exited with code 0\n\n", "sys")
@@ -267,6 +286,15 @@ class Viper(tk.Tk):
             try:
                 self.process.kill()
             except OSError:
+                pass
+
+    def _handle_process_input(self, text):
+        """Handle inline input from the terminal output area."""
+        if self.process and self.process.stdin:
+            try:
+                self.process.stdin.write(text + "\n")
+                self.process.stdin.flush()
+            except (BrokenPipeError, OSError):
                 pass
 
     def _handle_terminal_command(self, cmd):

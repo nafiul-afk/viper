@@ -2,6 +2,22 @@
 
 All notable changes to Viper will be documented in this file.
 
+## [1.1.0] — 2026-03-14
+
+### Added
+- Inline `input()` support — type directly in the terminal output area during execution
+- Process mode for the terminal with editable zone protection
+
+### Fixed
+- `input()` not working during code execution
+- `print()` output not showing after `input()` calls
+- Terminal input bar not visible
+- Output race condition on process exit
+
+### Changed
+- Improved subprocess stream reading for instant output
+- Terminal `write()` preserves pending user input when new output arrives
+
 ## [1.0.0] — 2026-03-14
 
 ### Added
